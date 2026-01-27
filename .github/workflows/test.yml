@@ -1,0 +1,51 @@
+name: Build and Test GitHub Gists API
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t github-gists-api .
+
+      # Run Docker container in background
+      - name: Run Docker container
+        run: |
+          docker run -d --name test-gists-api -p 8080:8080 github-gists-api
+          
+      # Wait for container to be ready
+      - name: Wait for API
+        run: |
+          echo "Waiting for container to start..."
+          for i in {1..10}; do
+            curl -s http://localhost:8080/octocat && break || sleep 2
+          done
+
+      # Run Go tests
+      - name: Run Go tests
+        run: |
+          go test -v
+
+      # Stop and remove Docker container
+      - name: Cleanup container
+        run: |
+          docker stop test-gists-api
+          docker rm test-gists-api
